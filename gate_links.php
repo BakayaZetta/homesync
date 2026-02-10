@@ -15,16 +15,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate'])) {
     $token = bin2hex(random_bytes(16));
     
     // Deactivate old tokens if needed or just add new one
-    $stmt = $pdo->prepare("INSERT INTO security_links (property_id, access_token) VALUES (?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO security_links (property_id, access_token, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))");
     $stmt->execute([$prop_id, $token]);
 }
 
 // Fetch Properties and their links
 $stmt = $pdo->prepare("
-    SELECT p.name, p.id, s.access_token, s.created_at 
+    SELECT p.name, p.id, s.access_token, s.created_at, s.expires_at 
     FROM properties p 
     LEFT JOIN (
-        SELECT property_id, access_token, created_at 
+        SELECT property_id, access_token, created_at, expires_at 
         FROM security_links 
         WHERE id IN (SELECT MAX(id) FROM security_links GROUP BY property_id)
     ) s ON p.id = s.property_id 
@@ -85,9 +85,28 @@ $baseUrl = "http://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . "
             <div style="margin-bottom: 25px; border-bottom: 1px solid #f1f5f9; padding-bottom: 20px;">
                 <h3 style="margin-bottom: 10px;"><?php echo $row['name']; ?></h3>
                 <?php if ($row['access_token']): ?>
-                    <div class="link-box">
-                        <span class="token" id="link_<?php echo $row['id']; ?>"><?php echo $baseUrl . "?token=" . $row['access_token']; ?></span>
-                        <button class="btn copy-btn" onclick="copyLink('link_<?php echo $row['id']; ?>')"><i class="fas fa-copy"></i> Copy</button>
+                    <?php 
+                    $is_expired = $row['expires_at'] && strtotime($row['expires_at']) < time();
+                    $expires_in = $row['expires_at'] ? strtotime($row['expires_at']) - time() : 0;
+                    $hours_left = floor($expires_in / 3600);
+                    ?>
+                    <div class="link-box" style="<?php echo $is_expired ? 'border-color: #e71d36; background: #fee;' : ''; ?>">
+                        <div>
+                            <span class="token" id="link_<?php echo $row['id']; ?>"><?php echo $baseUrl . "?token=" . $row['access_token']; ?></span>
+                            <?php if ($is_expired): ?>
+                                <p style="color: #e71d36; font-size: 12px; margin-top: 5px;"><i class="fas fa-exclamation-triangle"></i> Expired - Generate new link</p>
+                            <?php else: ?>
+                                <p style="color: #64748b; font-size: 12px; margin-top: 5px;"><i class="fas fa-clock"></i> Expires in <?php echo $hours_left; ?> hours (<?php echo date('M j, g:i A', strtotime($row['expires_at'])); ?>)</p>
+                            <?php endif; ?>
+                        </div>
+                        <?php if (!$is_expired): ?>
+                            <button class="btn copy-btn" onclick="copyLink('link_<?php echo $row['id']; ?>')"><i class="fas fa-copy"></i> Copy</button>
+                        <?php else: ?>
+                            <form method="POST" style="margin: 0;">
+                                <input type="hidden" name="property_id" value="<?php echo $row['id']; ?>">
+                                <button type="submit" name="generate" class="btn"><i class="fas fa-redo"></i> Regenerate</button>
+                            </form>
+                        <?php endif; ?>
                     </div>
                 <?php else: ?>
                     <form method="POST">

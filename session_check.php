@@ -30,6 +30,14 @@ function requireLogin() {
         header("Location: auth.html");
         exit();
     }
+    
+    // Regenerate session ID periodically to prevent fixation attacks
+    if (!isset($_SESSION['last_regeneration'])) {
+        $_SESSION['last_regeneration'] = time();
+    } elseif (time() - $_SESSION['last_regeneration'] > 300) { // Every 5 minutes
+        session_regenerate_id(true);
+        $_SESSION['last_regeneration'] = time();
+    }
 }
 
 // Auto-check session on include

@@ -10,9 +10,14 @@ $token = $_GET['token'] ?? '';
 $property = null;
 
 if ($token) {
-    $stmt = $pdo->prepare("SELECT p.* FROM properties p JOIN security_links s ON p.id = s.property_id WHERE s.access_token = ?");
+    $stmt = $pdo->prepare("SELECT p.*, s.expires_at FROM properties p JOIN security_links s ON p.id = s.property_id WHERE s.access_token = ?");
     $stmt->execute([$token]);
     $property = $stmt->fetch();
+    
+    // Check if token is expired
+    if ($property && $property['expires_at'] && strtotime($property['expires_at']) < time()) {
+        die("<h1>Access Denied</h1><p>This security token has expired. Please contact the property admin for a new access link.</p>");
+    }
 }
 
 if (!$property) {
