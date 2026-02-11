@@ -544,7 +544,11 @@
 
   // Check if security personnel is logged in
   if (!isset($_SESSION['security_id'])) {
+<<<<<<< HEAD
       header("Location: ../auth.html");
+=======
+      header("Location: login.php");
+>>>>>>> f6fa6ce0cae146b02e6e9ffcaafe93d8aa61b12c
       exit();
   }
 
@@ -561,42 +565,42 @@
           $id_number = $_POST['id_number'] ?? '';
           $phone_number = $_POST['phone_number'];
           $numberplate = $_POST['numberplate'] ?? '';
-          $house_number = $_POST['house_number'];
+          $unit_id = $_POST['unit_id']; // Changed from house_number to unit_id
           
           // Get current date and time
           $visit_date = date('Y-m-d');
           $visit_time = date('H:i:s');
           
-          // Check if the house number exists in tenants table
-          $valid_house = true;
-          $tenant_name = "";
+          // Get property_id and tenant_id from the unit
+          $tenant_id = null;
+          $property_id = null;
           
-          if (!empty($house_number)) {
-              $check_sql = "SELECT id_number, phone_number FROM tenants WHERE house_number = ?";
+          if (!empty($unit_id)) {
+              // Get property_id from unit and check for active tenant
+              $check_sql = "SELECT u.property_id, t.id as tenant_id FROM units u 
+                           LEFT JOIN tenants t ON t.unit_id = u.id AND t.status = 'active' 
+                           WHERE u.id = ?";
               $check_stmt = $conn->prepare($check_sql);
-              $check_stmt->bind_param("s", $house_number);
+              $check_stmt->bind_param("i", $unit_id);
               $check_stmt->execute();
               $check_result = $check_stmt->get_result();
               
-              if ($check_result->num_rows === 0) {
-                  $valid_house = false;
-                  $message = "Warning: The house number does not belong to any registered tenant, but visitor was still logged.";
-                  $message_type = "warning";
+              if ($row = $check_result->fetch_assoc()) {
+                  $property_id = $row['property_id'];
+                  $tenant_id = $row['tenant_id']; // May be NULL if unit is vacant
               }
               $check_stmt->close();
           }
           
-          // Insert into database - ID number is stored directly without validation
-          $sql = "INSERT INTO visitors (name, phone_number, numberplate, id_number, house_number, visit_date, visit_time) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?)";
+          // Insert into visitors table using relational schema
+          $sql = "INSERT INTO visitors (property_id, tenant_id, name, id_number, phone_number, number_plate, visit_date, time_in) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
           $stmt = $conn->prepare($sql);
-          $stmt->bind_param("sssssss", $name, $phone_number, $numberplate, $id_number, $house_number, $visit_date, $visit_time);
+          $stmt->bind_param("iissssss", $property_id, $tenant_id, $name, $id_number, $phone_number, $numberplate, $visit_date, $visit_time);
           
           if ($stmt->execute()) {
-              if ($valid_house) {
-                  $message = "Visitor logged successfully!";
-                  $message_type = "success";
-              }
+              $message = "Visitor logged successfully!";
+              $message_type = "success";
           } else {
               $message = "Error: " . $conn->error;
               $message_type = "error";
@@ -630,12 +634,16 @@
       $search_term = $conn->real_escape_string($_GET['search']);
   }
   
-  // Fetch visitors from database
-  $sql = "SELECT * FROM visitors";
+  // Fetch visitors from database with unit info
+  $sql = "SELECT v.*, u.unit_number 
+          FROM visitors v 
+          LEFT JOIN tenants t ON v.tenant_id = t.id
+          LEFT JOIN units u ON t.unit_id = u.id
+          WHERE 1=1";
   if (!empty($search_term)) {
-      $sql .= " WHERE name LIKE '%$search_term%' OR house_number LIKE '%$search_term%' OR phone_number LIKE '%$search_term%' OR id_number LIKE '%$search_term%'";
+      $sql .= " AND (v.name LIKE '%$search_term%' OR u.unit_number LIKE '%$search_term%' OR v.phone_number LIKE '%$search_term%' OR v.id_number LIKE '%$search_term%')";
   }
-  $sql .= " ORDER BY visit_date DESC, visit_time DESC";
+  $sql .= " ORDER BY v.visit_date DESC, v.time_in DESC";
   
   $result = $conn->query($sql);
   $visitors = [];
@@ -696,9 +704,27 @@
         </div>
 
         <div class="form-group">
-          <label for="house_number" class="form-label">House Number Visited <span class="required-marker">*</span></label>
-          <input type="text" id="house_number" name="house_number" class="form-control" placeholder="House # or Flat # (e.g. B12)" required>
-          <div id="houseValidation" class="house-validation"></div>
+          <label for="unit_id" class="form-label">House Number Visited <span class="required-marker">*</span></label>
+          <select id="unit_id" name="unit_id" class="form-control" required>
+            <option value="">Select House/Unit</option>
+            <?php
+            // Fetch all units with tenant info for the dropdown
+            $units_sql = "SELECT u.id, u.unit_number, t.name as tenant_name 
+                         FROM units u 
+                         LEFT JOIN tenants t ON t.unit_id = u.id AND t.status = 'active' 
+                         ORDER BY u.unit_number";
+            $units_result = $conn->query($units_sql);
+            while ($unit = $units_result->fetch_assoc()) {
+                $display = $unit['unit_number'];
+                if ($unit['tenant_name']) {
+                    $display .= ' - ' . htmlspecialchars($unit['tenant_name']);
+                } else {
+                    $display .= ' (Vacant)';
+                }
+                echo '<option value="' . $unit['id'] . '">' . htmlspecialchars($display) . '</option>';
+            }
+            ?>
+          </select>
         </div>
 
         <div class="d-flex justify-between align-center mt-2">
@@ -748,7 +774,7 @@
                 <div class="visitor-avatar"><?php echo $initials; ?></div>
                 <div class="visitor-details">
                   <div class="visitor-name"><?php echo htmlspecialchars($visitor['name']); ?></div>
-                  <div class="visitor-meta"><?php echo htmlspecialchars($visitor['house_number']); ?></div>
+                  <div class="visitor-meta"><?php echo htmlspecialchars($visitor['unit_number'] ?? 'N/A'); ?></div>
                   <?php if (!empty($visitor['id_number'])): ?>
                     <div class="visitor-meta">ID: <?php echo htmlspecialchars($visitor['id_number']); ?></div>
                   <?php endif; ?>
@@ -798,31 +824,7 @@
         searchInput.focus();
       <?php endif; ?>
       
-      // House number validation
-      const houseInput = document.getElementById('house_number');
-      const houseValidation = document.getElementById('houseValidation');
-      
-      houseInput.addEventListener('blur', function() {
-        const houseNumber = this.value.trim();
-        if (houseNumber) {
-          // Check if house exists via AJAX
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', '', true);
-          xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-          xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-              // This would typically be handled by a dedicated API endpoint
-              // For now, we'll just show a simple message
-              houseValidation.style.display = 'block';
-              houseValidation.textContent = 'House number verification would happen here';
-              houseValidation.className = 'house-validation validation-valid';
-            }
-          };
-          xhr.send('check_house=' + houseNumber);
-        } else {
-          houseValidation.style.display = 'none';
-        }
-      });
+      // Unit selection is now a dropdown, no validation needed
     });
   </script>
 </body>

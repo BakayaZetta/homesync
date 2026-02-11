@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // 3. Generate initial Security Link for this property
             $token = bin2hex(random_bytes(16));
-            $secStmt = $pdo->prepare("INSERT INTO security_links (property_id, access_token) VALUES (?, ?)");
+            $secStmt = $pdo->prepare("INSERT INTO security_links (property_id, access_token, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))");
             $secStmt->execute([$property_id, $token]);
         }
 

@@ -147,18 +147,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_tenant'])) {
     $has_wifi = isset($_POST['has_wifi']) ? 1 : 0;
     $has_garbage = isset($_POST['has_garbage']) ? 1 : 0;
     
-    // Handle file upload (ID picture)
+    // Handle file upload (ID picture) with security validation
     $id_picture = null;
     if (isset($_FILES['id_picture']) && $_FILES['id_picture']['error'] === UPLOAD_ERR_OK) {
         $upload_dir = 'uploads/id_pictures/';
         if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
+            mkdir($upload_dir, 0755, true); // Changed from 0777 to 0755 for security
         }
         
-        $file_extension = pathinfo($_FILES['id_picture']['name'], PATHINFO_EXTENSION);
-        $id_picture = $upload_dir . uniqid() . '.' . $file_extension;
+        // Security validations
+        $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
+        $max_file_size = 5 * 1024 * 1024; // 5MB
         
-        move_uploaded_file($_FILES['id_picture']['tmp_name'], $id_picture);
+        $file_type = $_FILES['id_picture']['type'];
+        $file_size = $_FILES['id_picture']['size'];
+        $file_extension = strtolower(pathinfo($_FILES['id_picture']['name'], PATHINFO_EXTENSION));
+        
+        // Validate file type
+        if (!in_array($file_type, $allowed_types)) {
+            $error = "Invalid file type. Only JPG, PNG, and GIF images are allowed.";
+        }
+        // Validate extension
+        elseif (!in_array($file_extension, $allowed_extensions)) {
+            $error = "Invalid file extension. Only jpg, jpeg, png, and gif are allowed.";
+        }
+        // Validate file size
+        elseif ($file_size > $max_file_size) {
+            $error = "File too large. Maximum size is 5MB.";
+        }
+        // All validations passed
+        else {
+            // Generate secure filename
+            $id_picture = $upload_dir . uniqid('id_', true) . '.' . $file_extension;
+            
+            if (!move_uploaded_file($_FILES['id_picture']['tmp_name'], $id_picture)) {
+                $error = "Failed to upload file. Please try again.";
+                $id_picture = null;
+            }
+        }
     }
     
     try {

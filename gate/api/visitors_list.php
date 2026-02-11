@@ -1,7 +1,8 @@
 <?php
 // api/visitors_list.php
 header('Content-Type: application/json; charset=utf-8');
-require __DIR__ . '/config.php';
+require __DIR__ . '/../../config.php';
+require __DIR__ . '/../../db_config.php';
 
 try {
     $stmt = $pdo->query("

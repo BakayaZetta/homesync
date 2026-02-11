@@ -1,7 +1,8 @@
 <?php
 // api/visitor_create.php
 header('Content-Type: application/json; charset=utf-8');
-require __DIR__ . '/config.php';
+require __DIR__ . '/../../config.php';
+require __DIR__ . '/../../db_config.php';
 
 $raw = file_get_contents('php://input');
 $data = json_decode($raw, true);
@@ -16,7 +17,7 @@ $full_name   = trim($data['full_name'] ?? '');
 $citizen_id  = trim($data['citizen_id'] ?? null);
 $phone       = trim($data['phone_number'] ?? null);
 $plate       = trim($data['number_plate'] ?? null);
-$house       = trim($data['house_number'] ?? '');
+$unit_id     = intval($data['unit_id'] ?? 0); // Changed from house_number to unit_id
 $time_in     = $data['time_in'] ?? null;
 $time_out    = $data['time_out'] ?? null;
 $signature   = $data['signature'] ?? null;
@@ -24,7 +25,7 @@ $signature   = $data['signature'] ?? null;
 // Basic validation
 $errors = [];
 if ($full_name === '') $errors[] = 'Full name is required.';
-if ($house === '') $errors[] = 'House number (house visited) is required.';
+if ($unit_id <= 0) $errors[] = 'Unit/House is required.';
 
 if (!empty($phone) && !preg_match('/^[\d\+\-\s]{6,20}$/', $phone)) {
     $errors[] = 'Phone number format seems invalid.';
@@ -50,15 +51,28 @@ function normalize_datetime($dt) {
 $time_in  = normalize_datetime($time_in);
 $time_out = normalize_datetime($time_out);
 
-// Try to find tenant_id by house_number (optional)
+// Get property_id and tenant_id from the unit
+$property_id = null;
 $tenant_id = null;
 try {
-    $stmt = $pdo->prepare("SELECT id FROM tenants WHERE house_number = ? LIMIT 1");
-    $stmt->execute([$house]);
+    $stmt = $pdo->prepare("SELECT u.property_id, t.id as tenant_id 
+                           FROM units u 
+                           LEFT JOIN tenants t ON t.unit_id = u.id AND t.status = 'active' 
+                           WHERE u.id = ?");
+    $stmt->execute([$unit_id]);
     $row = $stmt->fetch();
-    if ($row) $tenant_id = $row['id'];
+    if ($row) {
+        $property_id = $row['property_id'];
+        $tenant_id = $row['tenant_id']; // May be NULL if unit is vacant
+    } else {
+        http_response_code(404);
+        echo json_encode(['error' => 'Unit not found.']);
+        exit;
+    }
 } catch (Exception $e) {
-    // If tenants table doesn't exist it's ok; continue without tenant_id
+    http_response_code(500);
+    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+    exit;
 }
 
 // Handle signature: accept base64 PNG in $signature
@@ -84,19 +98,18 @@ if ($signature && preg_match('/^data:image\/png;base64,/', $signature)) {
 
 try {
     $sql = "INSERT INTO visitors
-        (citizen_id, full_name, phone_number, number_plate, time_in, time_out, signature, house_number, tenant_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        (property_id, tenant_id, name, id_number, phone_number, number_plate, visit_date, time_in, time_out)
+        VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?)";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
-        $citizen_id ?: null,
+        $property_id,
+        $tenant_id ?: null,
         $full_name,
+        $citizen_id ?: null,
         $phone ?: null,
         $plate ?: null,
-        $time_in ?: date('Y-m-d H:i:s'),
-        $time_out ?: null,
-        $signature_path ?: null,
-        $house,
-        $tenant_id ?: null
+        $time_in ?: date('H:i:s'),
+        $time_out ?: null
     ]);
     $lastId = $pdo->lastInsertId();
     echo json_encode(['success' => true, 'id' => (int)$lastId]);

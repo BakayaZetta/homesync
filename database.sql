@@ -102,15 +102,29 @@ CREATE TABLE IF NOT EXISTS security_links (
     property_id INT NOT NULL,
     access_token VARCHAR(64) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NULL,
     FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
 );
 
--- 9. Visitor Logs
+-- 9. Gate Personnel Authentication
+CREATE TABLE IF NOT EXISTS gate_personnel (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    property_id INT NOT NULL,
+    username VARCHAR(50) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_username (property_id, username)
+);
+
+-- 10. Visitor Logs
 CREATE TABLE IF NOT EXISTS visitors (
     id INT AUTO_INCREMENT PRIMARY KEY,
     property_id INT NOT NULL,
     tenant_id INT NULL,
     name VARCHAR(100) NOT NULL,
+    id_number VARCHAR(20) NULL,
     phone_number VARCHAR(15) NOT NULL,
     number_plate VARCHAR(20) NULL,
     visit_date DATE NOT NULL,

@@ -678,4 +678,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **HomeSync** - Transforming Property Management in Kenya 🇰🇪
 
+<<<<<<< HEAD
 *Built with ❤️ by Jacetechnologies*
+=======
+*Built with by Jacetechnologies*
+>>>>>>> f6fa6ce0cae146b02e6e9ffcaafe93d8aa61b12c
