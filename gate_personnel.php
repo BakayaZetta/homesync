@@ -5,7 +5,7 @@ require_once 'db_config.php';
 
 requireLogin();
 
-$property_id = $_SESSION['property_id'];
+$property_id = isset($_SESSION['property_id']) ? $_SESSION['property_id'] : null;
 $landlord_name = $_SESSION['user_name'];
 
 // Handle form submissions
@@ -70,7 +70,7 @@ $personnel_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gate Personnel Management - HomeSync</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/homesync/styles.css">
     <style>
         .main-content {
             margin-left: 260px;

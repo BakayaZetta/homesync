@@ -544,11 +544,7 @@
 
   // Check if security personnel is logged in
   if (!isset($_SESSION['security_id'])) {
-<<<<<<< HEAD
-      header("Location: ../auth.html");
-=======
       header("Location: login.php");
->>>>>>> f6fa6ce0cae146b02e6e9ffcaafe93d8aa61b12c
       exit();
   }
 
@@ -602,7 +598,7 @@
               $message = "Visitor logged successfully!";
               $message_type = "success";
           } else {
-              $message = "Error: " . $conn->error;
+              $message = "Error: " . $stmt->error;
               $message_type = "error";
           }
           
@@ -620,7 +616,7 @@
               $message = "Visitor timed out successfully!";
               $message_type = "success";
           } else {
-              $message = "Error: " . $conn->error;
+              $message = "Error: " . $stmt->error;
               $message_type = "error";
           }
           

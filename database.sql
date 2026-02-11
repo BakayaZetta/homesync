@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS tenants (
     phone_number VARCHAR(15) NOT NULL,
     move_in_date DATE NOT NULL,
     status ENUM('active', 'vacated') DEFAULT 'active',
+    balance_credit DECIMAL(10, 2) DEFAULT 0, -- Added balance_credit column
+    has_wifi BOOLEAN DEFAULT FALSE, -- Added has_wifi column
+    has_garbage BOOLEAN DEFAULT FALSE;
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (property_id) REFERENCES properties(id),
     FOREIGN KEY (unit_id) REFERENCES units(id)
