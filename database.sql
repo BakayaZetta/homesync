@@ -142,3 +142,30 @@ CREATE TABLE IF NOT EXISTS visitors (
 CREATE INDEX idx_tenant_phone ON tenants(phone_number);
 CREATE INDEX idx_bill_status ON bills(status);
 CREATE INDEX idx_unit_property ON units(property_id);
+
+-- 11. Agreement Templates
+CREATE TABLE IF NOT EXISTS agreements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    landlord_id INT NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    template_html MEDIUMTEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (landlord_id) REFERENCES landlords(id) ON DELETE CASCADE
+);
+
+-- 12. Tenant Agreements (instances sent to/sign by tenants)
+CREATE TABLE IF NOT EXISTS tenant_agreements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    agreement_id INT NOT NULL,
+    tenant_id INT NOT NULL,
+    property_id INT NOT NULL,
+    unit_id INT NOT NULL,
+    access_token VARCHAR(64) NOT NULL UNIQUE,
+    filled_html MEDIUMTEXT NOT NULL,
+    signature_path VARCHAR(255) NULL,
+    signed_at TIMESTAMP NULL,
+    status ENUM('pending','signed','void') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (agreement_id) REFERENCES agreements(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+);

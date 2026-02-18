@@ -895,6 +895,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_tenant'])) {
                                         <td>
                                             <button class="action-btn btn-edit" onclick="openEditModal(<?php echo $tenant['id']; ?>, '<?php echo htmlspecialchars($tenant['name']); ?>', '<?php echo htmlspecialchars($tenant['id_number']); ?>', '<?php echo htmlspecialchars($tenant['phone_number']); ?>', '<?php echo htmlspecialchars($tenant['unit_number']); ?>', '<?php echo htmlspecialchars($tenant['property_name']); ?>', '<?php echo $tenant['has_wifi']; ?>', '<?php echo $tenant['has_garbage']; ?>', '<?php echo $tenant['initial_water_reading']; ?>', '<?php echo $tenant['initial_electricity_reading']; ?>', '<?php echo $tenant['rent_amount'] ?? '' ; ?>')"><i class="fas fa-edit"></i></button>
                                             <button class="action-btn btn-delete" onclick="confirmDelete(<?php echo $tenant['id']; ?>, '<?php echo htmlspecialchars($tenant['name']); ?>')"><i class="fas fa-trash"></i></button>
+                                            <form method="POST" action="agreement_generate.php" style="display:inline">
+                                                <input type="hidden" name="tenant_id" value="<?php echo $tenant['id']; ?>">
+                                                <button class="action-btn btn-edit" title="Generate Agreement" style="background: #10b981; color: #fff"><i class="fas fa-file-signature"></i></button>
+                                            </form>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
